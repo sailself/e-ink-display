@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>E-ink Dashboard</title>
+<style>
+  /* Designed for a 6.13" portrait e-ink panel (Boox Palma 2: 824x1648 @ 300dpi -> ~439x879 CSS px).
+     Pure black on white, no animation, no colour, vw-based sizing so it scales to other portrait panels. */
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: #fff; color: #000; overflow: hidden; }
+  body {
+    font-family: Roboto, "Segoe UI", system-ui, -apple-system, sans-serif;
+    font-size: 3.6vw; line-height: 1.25;
+    display: flex; flex-direction: column;
+    height: 100vh; padding: 3.5vw 4.5vw 2.5vw;
+    -webkit-font-smoothing: none; text-rendering: optimizeLegibility;
+  }
+  section { padding: 2.6vw 0; border-top: 0.6vw solid #000; }
+  section:first-of-type { border-top: 0; padding-top: 0; }
+  h2 { font-size: 2.9vw; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; margin-bottom: 1.8vw; }
+  .muted { color: #555; }
+  .row { display: flex; align-items: baseline; justify-content: space-between; gap: 2vw; }
+
+  /* header */
+  #header { display: flex; justify-content: space-between; align-items: flex-end; }
+  #clock { font-size: 19vw; font-weight: 900; letter-spacing: -0.045em; line-height: 0.9; }
+  #date { text-align: right; line-height: 1.1; padding-bottom: 0.6vw; }
+  #date .wd { font-size: 6vw; font-weight: 700; display: block; }
+  #date .md { font-size: 4vw; display: block; margin-top: 1vw; }
+
+  /* weather */
+  #wx-now { display: flex; align-items: center; gap: 3vw; }
+  #wx-now svg { width: 17vw; height: 17vw; flex: none; }
+  #wx-temp { font-size: 15vw; font-weight: 900; letter-spacing: -0.04em; line-height: 1; }
+  #wx-temp sup { font-size: 6vw; font-weight: 700; vertical-align: top; position: relative; top: 1.2vw; }
+  #wx-desc { flex: 1; min-width: 0; }
+  #wx-desc .cond { font-size: 4.4vw; font-weight: 700; }
+  #wx-desc .sub { font-size: 3.1vw; margin-top: 0.8vw; }
+  #wx-meta { display: flex; flex-wrap: wrap; gap: 1vw 4vw; margin-top: 2.2vw; font-size: 3.2vw; }
+  #wx-meta b { font-weight: 700; }
+  #wx-hours { display: grid; grid-template-columns: repeat(6, 1fr); margin-top: 2.6vw; text-align: center; }
+  #wx-hours .h { font-size: 2.9vw; }
+  #wx-hours svg { width: 7vw; height: 7vw; margin: 0.8vw auto 0.4vw; display: block; }
+  #wx-hours .t { font-size: 3.8vw; font-weight: 700; }
+  #wx-hours .p { font-size: 2.7vw; height: 3.2vw; }
+
+  /* quotas */
+  .prov { margin-bottom: 2.2vw; }
+  .prov:last-child { margin-bottom: 0; }
+  .prov-name { font-size: 4.2vw; font-weight: 700; margin-bottom: 1.2vw; }
+  .prov-name small { font-size: 3vw; font-weight: 400; color: #555; margin-left: 1.5vw; }
+  .lim { margin-bottom: 1.6vw; }
+  .lim .row { font-size: 3.4vw; }
+  .lim .pct { font-size: 4.4vw; font-weight: 900; }
+  .lim .pct.hot::before { content: "! "; }
+  .bar { height: 3.4vw; border: 0.5vw solid #000; margin: 0.8vw 0 0.6vw; background: #fff; }
+  .bar .fill { height: 100%; background: #000; }
+  .bar .fill.hot { background: repeating-linear-gradient(135deg, #000 0, #000 1.2vw, #fff 1.2vw, #fff 1.8vw); }
+  .reset { font-size: 2.9vw; text-align: right; }
+  .spend { font-size: 2.9vw; margin-top: 0.4vw; }
+
+  /* events */
+  #events { flex: 1; min-height: 0; overflow: hidden; }
+  .ev { display: flex; gap: 2.6vw; padding: 1.3vw 0; border-bottom: 0.25vw solid #bbb; }
+  .ev:last-child { border-bottom: 0; }
+  .ev .when { width: 17vw; flex: none; font-weight: 700; font-size: 3.4vw; line-height: 1.3; }
+  .ev .when small { display: block; font-weight: 400; font-size: 2.8vw; color: #555; }
+  .ev .what { flex: 1; min-width: 0; }
+  .ev .title { font-size: 3.8vw; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ev .loc { font-size: 3vw; color: #555; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ev.past { color: #777; } .ev.past .title { font-weight: 400; text-decoration: line-through; }
+  .ev.now .title::before { content: "\25B6\00a0"; }
+  .ev-sub { font-size: 2.9vw; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; margin: 2vw 0 0.6vw; color: #555; }
+  .empty { font-size: 3.4vw; color: #555; padding: 1vw 0; }
+  .err { font-size: 3.1vw; border: 0.4vw dashed #000; padding: 1.4vw 2vw; margin-top: 1vw; }
+
+  /* footer */
+  #footer { display: flex; justify-content: space-between; font-size: 2.8vw; color: #555; padding-top: 2vw; border-top: 0.25vw solid #bbb; }
+  #footer .warn { color: #000; font-weight: 700; }
+
+  #flash { position: fixed; inset: 0; background: #000; display: none; z-index: 99; }
+</style>
+</head>
+<body>
+  <section id="header">
+    <div id="clock">--:--</div>
+    <div id="date"><span class="wd">&nbsp;</span><span class="md">&nbsp;</span></div>
+  </section>
+
+  <section id="weather"><h2 id="wx-title">Weather</h2><div id="wx"><div class="empty">Loading weather…</div></div></section>
+
+  <section id="quota"><h2>AI quota</h2><div id="quotas"><div class="empty">Loading quotas…</div></div></section>
+
+  <section id="events"><h2>Today</h2><div id="evs"><div class="empty">Loading events…</div></div></section>
+
+  <div id="footer"><span id="f-left">starting…</span><span id="f-right"></span></div>
+  <div id="flash"></div>
+
+<script>
+(function () {
+  'use strict';
+  var data = null, netError = null, lastOk = null, failStreak = 0;
+  var prev = {};            // last rendered HTML per slot, to avoid needless e-ink repaints
+  var meta = { refresh_seconds: 120, flash_clear_minutes: 30, full_reload_hours: 6 };
+  var startedAt = Date.now();
+
+  /* ---------- helpers ---------- */
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function set(id, html) { if (prev[id] !== html) { document.getElementById(id).innerHTML = html; prev[id] = html; } }
+  function fmtTime(d) { return new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' }).format(d); }
+  function fmtHour(d) { return new Intl.DateTimeFormat(undefined, { hour: 'numeric' }).format(d).replace(/\s/g, ''); }
+  function fmtWeekday(d) { return new Intl.DateTimeFormat(undefined, { weekday: 'short' }).format(d); }
+  function sameDay(a, b) { return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate(); }
+  function round(x) { return x == null ? '–' : Math.round(x); }
+  function resetText(iso) {
+    if (!iso) return '';
+    var d = new Date(iso), now = new Date(), diff = d - now;
+    if (diff < 60e3) return 'resets now';
+    if (diff < 20 * 3600e3) return 'resets ' + fmtTime(d);
+    return 'resets ' + fmtWeekday(d) + ' ' + fmtTime(d);
+  }
+
+  /* simple monochrome stroke icons */
+  var P = 'fill="none" stroke="#000" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"';
+  var CLOUD = '<path d="M7 18h10a4 4 0 0 0 .5-8A6 6 0 0 0 6 9.5 4.3 4.3 0 0 0 7 18z"/>';
+  var ICONS = {
+    sun: '<circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.5M12 19v2.5M2.5 12H5M19 12h2.5M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8"/>',
+    moon: '<path d="M19 14.5A7.5 7.5 0 0 1 9.5 5a7.5 7.5 0 1 0 9.5 9.5z"/>',
+    partly: '<circle cx="8" cy="8" r="3.2"/><path d="M8 2.5v1.5M2.5 8H4M4.1 4.1l1.1 1.1M12.4 4.1l-1.1 1.1"/><path d="M9 20h8.5a3.5 3.5 0 0 0 .4-7A5.2 5.2 0 0 0 8 12.5 3.8 3.8 0 0 0 9 20z"/>',
+    cloud: CLOUD,
+    fog: '<path d="M7 14h10a4 4 0 0 0 .5-8A6 6 0 0 0 6 5.5 4.3 4.3 0 0 0 7 14z"/><path d="M5 18h14M7 21.5h10"/>',
+    rain: '<path d="M7 15h10a4 4 0 0 0 .5-8A6 6 0 0 0 6 6.5 4.3 4.3 0 0 0 7 15z"/><path d="M8.5 18l-1 3M12.5 18l-1 3M16.5 18l-1 3"/>',
+    snow: '<path d="M7 15h10a4 4 0 0 0 .5-8A6 6 0 0 0 6 6.5 4.3 4.3 0 0 0 7 15z"/><path d="M8 19.5h.01M12 21h.01M16 19.5h.01" stroke-width="3"/>',
+    storm: '<path d="M7 14h10a4 4 0 0 0 .5-8A6 6 0 0 0 6 5.5 4.3 4.3 0 0 0 7 14z"/><path d="M12.5 13l-2.5 4.5h4L11.5 22"/>'
+  };
+  function icon(name) { return '<svg viewBox="0 0 24 24" ' + P + '>' + (ICONS[name] || CLOUD) + '</svg>'; }
+
+  /* ---------- clock ---------- */
+  function tickClock() {
+    var now = new Date();
+    set('clock', fmtTime(now));
+    set('date', '<span class="wd">' + esc(new Intl.DateTimeFormat(undefined, { weekday: 'long' }).format(now)) + '</span>' +
+      '<span class="md">' + esc(new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric' }).format(now)) + '</span>');
+  }
+
+  /* ---------- sections ---------- */
+  function sectionWrap(sec, inner, emptyMsg) {
+    if (!sec) return '<div class="empty">' + esc(emptyMsg) + '</div>';
+    var html = '';
+    if (sec.data) html += inner(sec.data);
+    if (sec.error && !sec.data) html += '<div class="err">' + esc(sec.error) + '</div>';
+    return html;
+  }
+
+  function renderWeather(sec) {
+    var html = sectionWrap(sec, function (w) {
+      var c = w.current, today = w.daily[0] || {}, u = w.units.temp;
+      var sr = today.sunrise ? fmtTime(new Date(today.sunrise)) : '–', ss = today.sunset ? fmtTime(new Date(today.sunset)) : '–';
+      var out = '<div id="wx-now">' + icon(c.icon) +
+        '<div id="wx-temp">' + round(c.temp) + '<sup>' + esc(u) + '</sup></div>' +
+        '<div id="wx-desc"><div class="cond">' + esc(c.text) + '</div>' +
+        '<div class="sub">Feels ' + round(c.feels) + '° · ' + round(c.humidity) + '% hum</div></div></div>';
+      out += '<div id="wx-meta"><span><b>H</b> ' + round(today.hi) + '° <b>L</b> ' + round(today.lo) + '°</span>' +
+        '<span><b>Rain</b> ' + round(today.pop) + '%</span>' +
+        '<span><b>Wind</b> ' + round(c.wind) + ' ' + esc(w.units.wind) + '</span>' +
+        '<span>' + esc(sr) + ' → ' + esc(ss) + '</span></div>';
+      var hrs = [], step = 2;
+      for (var i = 1; i < w.hourly.length && hrs.length < 6; i += step) hrs.push(w.hourly[i]);
+      out += '<div id="wx-hours">' + hrs.map(function (h) {
+        return '<div><div class="h">' + esc(fmtHour(new Date(h.time))) + '</div>' + icon(h.icon) +
+          '<div class="t">' + round(h.temp) + '°</div><div class="p">' + (h.pop >= 10 ? round(h.pop) + '%' : '') + '</div></div>';
+      }).join('') + '</div>';
+      return out;
+    }, 'No weather yet');
+    set('wx', html);
+    var title = 'Weather' + (sec && sec.data ? ' · ' + sec.data.location : '') + (sec && sec.stale ? ' · stale' : '');
+    set('wx-title', esc(title));
+  }
+
+  function renderProvider(sec) {
+    return sectionWrap(sec, function (p) {
+      var out = '<div class="prov"><div class="prov-name">' + esc(p.provider) + (p.plan ? '<small>' + esc(p.plan) + '</small>' : '') +
+        (sec.stale ? '<small>stale</small>' : '') + '</div>';
+      p.limits.forEach(function (l) {
+        var pct = Math.max(0, Math.min(100, l.percent == null ? 0 : l.percent));
+        var hot = (l.severity && l.severity !== 'normal') || pct >= 85;
+        out += '<div class="lim"><div class="row"><span>' + esc(l.label) + '</span><span class="pct' + (hot ? ' hot' : '') + '">' + round(l.percent) + '%</span></div>' +
+          '<div class="bar"><div class="fill' + (hot ? ' hot' : '') + '" style="width:' + pct + '%"></div></div>' +
+          '<div class="reset muted">' + esc(resetText(l.resets_at)) + '</div></div>';
+      });
+      if (p.spend && p.spend.limit != null) {
+        out += '<div class="spend muted">Extra usage ' + esc(p.spend.currency || '') + ' ' + p.spend.used.toFixed(2) + ' / ' + p.spend.limit.toFixed(2) + '</div>';
+      }
+      return out + '</div>';
+    }, 'No quota data');
+  }
+
+  function renderQuotas(s) {
+    set('quotas', renderProvider(s.claude) + renderProvider(s.codex));
+  }
+
+  function renderEvents(sec) {
+    var html = sectionWrap(sec, function (c) {
+      if (!c.configured) return '<div class="empty">No calendar configured. Add an ICS URL under "calendar" in config.json.</div>';
+      var now = new Date(), today = [], later = [];
+      c.events.forEach(function (e) {
+        var s = new Date(e.start), en = e.end ? new Date(e.end) : null;
+        if (en && en <= now && !sameDay(s, now)) return;          // already over, not today
+        (sameDay(s, now) || (e.all_day && s <= now && en && en > now) ? today : later).push(e);
+      });
+      function row(e) {
+        var s = new Date(e.start), en = e.end ? new Date(e.end) : null;
+        var cls = en && en <= now ? ' past' : (s <= now && (!en || en > now) ? ' now' : '');
+        var when = e.all_day ? 'All day' : esc(fmtTime(s)) + (en ? '<small>' + esc(fmtTime(en)) + '</small>' : '');
+        return '<div class="ev' + cls + '"><div class="when">' + when + '</div><div class="what"><div class="title">' + esc(e.title) + '</div>' +
+          (e.location ? '<div class="loc">' + esc(e.location) + '</div>' : '') + '</div></div>';
+      }
+      var out = today.length ? today.map(row).join('') : '<div class="empty">Nothing scheduled today.</div>';
+      if (later.length) out += '<div class="ev-sub">Up next</div>' + later.slice(0, 3).map(function (e) {
+        var s = new Date(e.start);
+        return row(e).replace('<div class="when">', '<div class="when">' + esc(fmtWeekday(s)) + ' ');
+      }).join('');
+      return out;
+    }, 'No calendar data');
+    set('evs', html);
+  }
+
+  function renderFooter() {
+    var left = [], right = [];
+    left.push(lastOk ? 'Updated ' + fmtTime(lastOk) : 'No data yet');
+    try {
+      if (window.Device && Device.battery) left.push('Battery ' + Device.battery() + '%' + (Device.charging && Device.charging() ? ' (charging)' : ''));
+    } catch (e) { /* not inside the kiosk app */ }
+    if (netError) right.push('<span class="warn">Server unreachable: ' + esc(netError) + '</span>');
+    else if (data) {
+      var stale = Object.keys(data.sections).filter(function (k) { return data.sections[k].stale; });
+      var failed = Object.keys(data.sections).filter(function (k) { return data.sections[k].error && !data.sections[k].data; });
+      if (stale.length) right.push('<span class="warn">stale: ' + esc(stale.join(', ')) + '</span>');
+      if (failed.length) right.push('<span class="warn">failed: ' + esc(failed.join(', ')) + '</span>');
+      if (data.meta.adb && data.meta.adb.enabled && !data.meta.adb.connected) right.push('usb link down');
+    }
+    set('f-left', left.join(' · '));
+    set('f-right', right.join(' · '));
+  }
+
+  function render() {
+    tickClock();
+    if (data) {
+      renderWeather(data.sections.weather);
+      renderQuotas(data.sections);
+      renderEvents(data.sections.calendar);
+    }
+    renderFooter();
+  }
+
+  /* ---------- data ---------- */
+  function load() {
+    var ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    var timer = ctrl && setTimeout(function () { ctrl.abort(); }, 25000);
+    fetch('/api/data?t=' + Date.now(), { cache: 'no-store', signal: ctrl && ctrl.signal })
+      .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+      .then(function (j) { data = j; meta = j.meta || meta; netError = null; lastOk = new Date(); failStreak = 0; })
+      .catch(function (e) { netError = e && e.message ? e.message : String(e); failStreak++; })
+      .then(function () {
+        if (timer) clearTimeout(timer);
+        render();
+        if (failStreak >= 3) { failStreak = 0; serverLost(); }
+        scheduleNext();
+      });
+  }
+  /* Several polls in a row failed (e.g. USB unplugged, so localhost died). Inside the kiosk app ask it to try
+     the next URL in its list; in a plain browser just reload so a dead origin becomes visible. */
+  function serverLost() {
+    try { if (window.Device && Device.switchUrl) { Device.switchUrl(); return; } } catch (e) { /* fall through */ }
+    location.reload();
+  }
+  var nextTimer = null;
+  function scheduleNext() {
+    clearTimeout(nextTimer);
+    nextTimer = setTimeout(load, (netError ? Math.min(meta.refresh_seconds, 60) : meta.refresh_seconds) * 1000);
+  }
+
+  /* e-ink ghosting: periodically paint the whole panel black then white, then redraw everything */
+  function flashClear() {
+    var f = document.getElementById('flash');
+    f.style.display = 'block';
+    setTimeout(function () {
+      f.style.display = 'none';
+      prev = {};
+      render();
+    }, 700);
+  }
+
+  /* ---------- schedule ---------- */
+  load();
+  var msToMinute = 60000 - (Date.now() % 60000);
+  setTimeout(function () { tickClock(); setInterval(tickClock, 60000); }, msToMinute + 50);
+  setInterval(function () {
+    var mins = (Date.now() - startedAt) / 60000;
+    if (mins >= meta.full_reload_hours * 60) { location.reload(); return; }
+    if (meta.flash_clear_minutes > 0 && Math.round(mins) % meta.flash_clear_minutes === 0) flashClear();
+  }, 60000);
+})();
+</script>
+</body>
+</html>

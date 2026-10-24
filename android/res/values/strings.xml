@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">E-ink Dashboard</string>
+    <!-- default_urls is generated at build time from config.json ("dashboard_urls"); see android/build.py -->
+
+</resources>

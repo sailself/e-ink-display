@@ -1,0 +1,12 @@
+# local state
+config.json
+logs/
+.remember/
+
+# build output and signing key (keep the keystore private; without it, updates need an uninstall first)
+android/build/
+android/eink-debug.keystore
+
+# python
+__pycache__/
+*.pyc
