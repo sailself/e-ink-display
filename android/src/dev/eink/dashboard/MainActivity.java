@@ -3,6 +3,7 @@ package dev.eink.dashboard;
 import android.app.Activity;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.ActivityInfo;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.os.BatteryManager;
@@ -37,14 +38,17 @@ import java.util.Date;
  */
 public class MainActivity extends Activity {
     public static final String EXTRA_URLS = "urls";
+    public static final String EXTRA_ORIENTATION = "orientation";
     private static final String PREFS = "dash";
     private static final String PREF_GOOD_INDEX = "good_index";
+    private static final String PREF_ORIENTATION = "orientation";
     private static final long RETRY_MS = 20_000;
     private static final long WATCHDOG_MS = 10 * 60_000;
     private static final long STALE_MS = 45 * 60_000;
 
     private WebView web;
     private String[] urls;
+    private String orientation = "portrait";
     private int urlIndex = 0;
     private long lastGoodLoad = 0;
     private boolean currentLoadFailed = false;
@@ -67,6 +71,8 @@ public class MainActivity extends Activity {
         w.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         setShowWhenLocked(true);
         setTurnScreenOn(true);
+        orientation = getSharedPreferences(PREFS, MODE_PRIVATE).getString(PREF_ORIENTATION, "portrait");
+        applyOrientation(orientation);
 
         web = new WebView(this);
         web.setBackgroundColor(Color.WHITE);
@@ -105,6 +111,7 @@ public class MainActivity extends Activity {
 
         urls = resolveUrls(getIntent());
         urlIndex = getSharedPreferences(PREFS, MODE_PRIVATE).getInt(PREF_GOOD_INDEX, 0) % urls.length;  // start with what last worked
+        applyIntentOrientation(getIntent());
         load();
         handler.postDelayed(watchdog, WATCHDOG_MS);
     }
@@ -112,11 +119,40 @@ public class MainActivity extends Activity {
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
-        if (intent != null && intent.hasExtra(EXTRA_URLS)) {
+        if (intent == null) return;
+        applyIntentOrientation(intent);
+        if (intent.hasExtra(EXTRA_URLS)) {
             urls = resolveUrls(intent);
             urlIndex = 0;
             load();
         }
+    }
+
+    /** `am start ... --es orientation landscape` overrides the config-driven value until the page sends a new one. */
+    private void applyIntentOrientation(Intent intent) {
+        String o = intent.getStringExtra(EXTRA_ORIENTATION);
+        if (o != null && !o.trim().isEmpty()) setOrientationMode(o.trim());
+    }
+
+    private void setOrientationMode(String mode) {
+        if (mode.equals(orientation)) return;
+        orientation = mode;
+        getSharedPreferences(PREFS, MODE_PRIVATE).edit().putString(PREF_ORIENTATION, mode).apply();
+        applyOrientation(mode);
+    }
+
+    private void applyOrientation(String mode) {
+        int o;
+        switch (mode) {
+            case "landscape": o = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE; break;
+            case "reverse-landscape": o = ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE; break;
+            case "reverse-portrait": o = ActivityInfo.SCREEN_ORIENTATION_REVERSE_PORTRAIT; break;
+            case "sensor-landscape": o = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE; break;
+            case "sensor-portrait": o = ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT; break;
+            case "auto": case "sensor": o = ActivityInfo.SCREEN_ORIENTATION_FULL_SENSOR; break;
+            default: o = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT;
+        }
+        setRequestedOrientation(o);
     }
 
     private String[] resolveUrls(Intent intent) {
@@ -199,6 +235,14 @@ public class MainActivity extends Activity {
         @JavascriptInterface public int battery() { return bm().getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY); }
         @JavascriptInterface public boolean charging() { return bm().isCharging(); }
         @JavascriptInterface public String model() { return Build.MANUFACTURER + " " + Build.MODEL; }
+
+        /** config.json's dashboard.orientation, relayed by the page after every successful poll. */
+        @JavascriptInterface public void setOrientation(final String mode) {
+            if (mode == null) return;
+            handler.post(new Runnable() {
+                @Override public void run() { setOrientationMode(mode.trim()); }
+            });
+        }
 
         /** The page lost its server (its fetches keep failing): move on to the next URL in the list. */
         @JavascriptInterface public void switchUrl() {

@@ -5,90 +5,123 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>E-ink Dashboard</title>
 <style>
-  /* Designed for a 6.13" portrait e-ink panel (Boox Palma 2: 824x1648 @ 300dpi -> ~439x879 CSS px).
-     Pure black on white, no animation, no colour, vw-based sizing so it scales to other portrait panels. */
+  /* Designed for a 6.13" e-ink panel (Boox Palma 2: 824x1648 @ 300dpi -> ~439x879 CSS px) in either
+     orientation. Sizes use vmin (the short side), so type stays the same size when the panel rotates:
+     portrait is a single column, landscape becomes three columns (clock+weather | quota | events).
+     Pure black on white, no animation, no colour. */
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { height: 100%; background: #fff; color: #000; overflow: hidden; }
   body {
     font-family: Roboto, "Segoe UI", system-ui, -apple-system, sans-serif;
-    font-size: 3.6vw; line-height: 1.25;
+    font-size: 3.6vmin; line-height: 1.25;
     display: flex; flex-direction: column;
-    height: 100vh; padding: 3.5vw 4.5vw 2.5vw;
+    height: 100vh; padding: 3.5vmin 4.5vmin 2.5vmin;
     -webkit-font-smoothing: none; text-rendering: optimizeLegibility;
   }
-  section { padding: 2.6vw 0; border-top: 0.6vw solid #000; }
-  section:first-of-type { border-top: 0; padding-top: 0; }
-  h2 { font-size: 2.9vw; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; margin-bottom: 1.8vw; }
+  #col-a { display: contents; }           /* portrait: header + weather sit directly in the column */
+  section { padding: 2.6vmin 0; border-top: 0.6vmin solid #000; }
+  #header { border-top: 0; padding-top: 0; }
+  h2 { font-size: 2.9vmin; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; margin-bottom: 1.8vmin; }
   .muted { color: #555; }
-  .row { display: flex; align-items: baseline; justify-content: space-between; gap: 2vw; }
+  .row { display: flex; align-items: baseline; justify-content: space-between; gap: 2vmin; }
 
   /* header */
   #header { display: flex; justify-content: space-between; align-items: flex-end; }
-  #clock { font-size: 19vw; font-weight: 900; letter-spacing: -0.045em; line-height: 0.9; }
-  #date { text-align: right; line-height: 1.1; padding-bottom: 0.6vw; }
-  #date .wd { font-size: 6vw; font-weight: 700; display: block; }
-  #date .md { font-size: 4vw; display: block; margin-top: 1vw; }
+  #clock { font-size: 19vmin; font-weight: 900; letter-spacing: -0.045em; line-height: 0.9; }
+  #date { text-align: right; line-height: 1.1; padding-bottom: 0.6vmin; }
+  #date .wd { font-size: 6vmin; font-weight: 700; display: block; }
+  #date .md { font-size: 4vmin; display: block; margin-top: 1vmin; }
 
   /* weather */
-  #wx-now { display: flex; align-items: center; gap: 3vw; }
-  #wx-now svg { width: 17vw; height: 17vw; flex: none; }
-  #wx-temp { font-size: 15vw; font-weight: 900; letter-spacing: -0.04em; line-height: 1; }
-  #wx-temp sup { font-size: 6vw; font-weight: 700; vertical-align: top; position: relative; top: 1.2vw; }
+  #wx-now { display: flex; align-items: center; gap: 3vmin; }
+  #wx-now svg { width: 17vmin; height: 17vmin; flex: none; }
+  #wx-temp { font-size: 15vmin; font-weight: 900; letter-spacing: -0.04em; line-height: 1; }
+  #wx-temp sup { font-size: 6vmin; font-weight: 700; vertical-align: top; position: relative; top: 1.2vmin; }
   #wx-desc { flex: 1; min-width: 0; }
-  #wx-desc .cond { font-size: 4.4vw; font-weight: 700; }
-  #wx-desc .sub { font-size: 3.1vw; margin-top: 0.8vw; }
-  #wx-meta { display: flex; flex-wrap: wrap; gap: 1vw 4vw; margin-top: 2.2vw; font-size: 3.2vw; }
+  #wx-desc .cond { font-size: 4.4vmin; font-weight: 700; }
+  #wx-desc .sub { font-size: 3.1vmin; margin-top: 0.8vmin; }
+  #wx-meta { display: flex; flex-wrap: wrap; gap: 1vmin 4vmin; margin-top: 2.2vmin; font-size: 3.2vmin; }
   #wx-meta b { font-weight: 700; }
-  #wx-hours { display: grid; grid-template-columns: repeat(6, 1fr); margin-top: 2.6vw; text-align: center; }
-  #wx-hours .h { font-size: 2.9vw; }
-  #wx-hours svg { width: 7vw; height: 7vw; margin: 0.8vw auto 0.4vw; display: block; }
-  #wx-hours .t { font-size: 3.8vw; font-weight: 700; }
-  #wx-hours .p { font-size: 2.7vw; height: 3.2vw; }
+  #wx-hours { display: grid; grid-template-columns: repeat(6, 1fr); margin-top: 2.6vmin; text-align: center; }
+  #wx-hours .h { font-size: 2.9vmin; }
+  #wx-hours svg { width: 7vmin; height: 7vmin; margin: 0.8vmin auto 0.4vmin; display: block; }
+  #wx-hours .t { font-size: 3.8vmin; font-weight: 700; }
+  #wx-hours .p { font-size: 2.7vmin; height: 3.2vmin; }
 
   /* quotas */
-  .prov { margin-bottom: 2.2vw; }
+  .prov { margin-bottom: 2.2vmin; }
   .prov:last-child { margin-bottom: 0; }
-  .prov-name { font-size: 4.2vw; font-weight: 700; margin-bottom: 1.2vw; }
-  .prov-name small { font-size: 3vw; font-weight: 400; color: #555; margin-left: 1.5vw; }
-  .lim { margin-bottom: 1.6vw; }
-  .lim .row { font-size: 3.4vw; }
-  .lim .pct { font-size: 4.4vw; font-weight: 900; }
+  .prov-name { font-size: 4.2vmin; font-weight: 700; margin-bottom: 1.2vmin; }
+  .prov-name small { font-size: 3vmin; font-weight: 400; color: #555; margin-left: 1.5vmin; }
+  .lim { margin-bottom: 1.6vmin; }
+  .lim .row { font-size: 3.4vmin; }
+  .lim .row small { display: none; font-size: 2.8vmin; color: #555; margin-left: 1vmin; }
+  .lim .pct { font-size: 4.4vmin; font-weight: 900; }
   .lim .pct.hot::before { content: "! "; }
-  .bar { height: 3.4vw; border: 0.5vw solid #000; margin: 0.8vw 0 0.6vw; background: #fff; }
+  .bar { height: 3.4vmin; border: 0.5vmin solid #000; margin: 0.8vmin 0 0.6vmin; background: #fff; }
   .bar .fill { height: 100%; background: #000; }
-  .bar .fill.hot { background: repeating-linear-gradient(135deg, #000 0, #000 1.2vw, #fff 1.2vw, #fff 1.8vw); }
-  .reset { font-size: 2.9vw; text-align: right; }
-  .spend { font-size: 2.9vw; margin-top: 0.4vw; }
+  .bar .fill.hot { background: repeating-linear-gradient(135deg, #000 0, #000 1.2vmin, #fff 1.2vmin, #fff 1.8vmin); }
+  .reset { font-size: 2.9vmin; text-align: right; }
+  .spend { font-size: 2.9vmin; margin-top: 0.4vmin; }
 
   /* events */
   #events { flex: 1; min-height: 0; overflow: hidden; }
-  .ev { display: flex; gap: 2.6vw; padding: 1.3vw 0; border-bottom: 0.25vw solid #bbb; }
+  .ev { display: flex; gap: 2.6vmin; padding: 1.3vmin 0; border-bottom: 0.25vmin solid #bbb; }
   .ev:last-child { border-bottom: 0; }
-  .ev .when { width: 17vw; flex: none; font-weight: 700; font-size: 3.4vw; line-height: 1.3; }
-  .ev .when small { display: block; font-weight: 400; font-size: 2.8vw; color: #555; }
+  .ev .when { width: 17vmin; flex: none; font-weight: 700; font-size: 3.4vmin; line-height: 1.3; }
+  .ev .when small { display: block; font-weight: 400; font-size: 2.8vmin; color: #555; }
   .ev .what { flex: 1; min-width: 0; }
-  .ev .title { font-size: 3.8vw; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .ev .loc { font-size: 3vw; color: #555; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ev .title { font-size: 3.8vmin; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ev .loc { font-size: 3vmin; color: #555; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .ev.past { color: #777; } .ev.past .title { font-weight: 400; text-decoration: line-through; }
   .ev.now .title::before { content: "\25B6\00a0"; }
-  .ev-sub { font-size: 2.9vw; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; margin: 2vw 0 0.6vw; color: #555; }
-  .empty { font-size: 3.4vw; color: #555; padding: 1vw 0; }
-  .err { font-size: 3.1vw; border: 0.4vw dashed #000; padding: 1.4vw 2vw; margin-top: 1vw; }
+  .ev-sub { font-size: 2.9vmin; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; margin: 2vmin 0 0.6vmin; color: #555; }
+  .empty { font-size: 3.4vmin; color: #555; padding: 1vmin 0; }
+  .err { font-size: 3.1vmin; border: 0.4vmin dashed #000; padding: 1.4vmin 2vmin; margin-top: 1vmin; }
 
   /* footer */
-  #footer { display: flex; justify-content: space-between; font-size: 2.8vw; color: #555; padding-top: 2vw; border-top: 0.25vw solid #bbb; }
+  #footer { display: flex; justify-content: space-between; font-size: 2.8vmin; color: #555; padding-top: 2vmin; border-top: 0.25vmin solid #bbb; }
   #footer .warn { color: #000; font-weight: 700; }
 
   #flash { position: fixed; inset: 0; background: #000; display: none; z-index: 99; }
+
+  /* ---------- landscape: three columns ---------- */
+  @media (orientation: landscape) {
+    body {
+      display: grid; grid-template-columns: 1.25fr 1fr 0.9fr; grid-template-rows: minmax(0, 1fr) auto;
+      column-gap: 4vmin; padding: 3vmin 4vmin 2vmin;
+    }
+    #col-a { display: flex; flex-direction: column; min-height: 0; }
+    section { border-top: 0; }
+    #quota, #events { border-left: 0.6vmin solid #000; padding: 0 0 0 4vmin; min-height: 0; overflow: hidden; }
+    #footer { grid-column: 1 / -1; }
+    h2 { margin-bottom: 1.4vmin; }
+
+    #header { display: block; padding-bottom: 1.6vmin; }
+    #clock { font-size: 19vmin; }
+    #date { text-align: left; padding: 1.6vmin 0 0; }
+    #date .wd, #date .md { display: inline; font-size: 4.4vmin; margin: 0; }
+    #date .wd::after { content: "\00a0\00b7\00a0"; font-weight: 400; }
+
+    #weather { flex: 1; min-height: 0; border-top: 0.6vmin solid #000; padding-top: 2.2vmin; }
+    #wx-now svg { width: 15vmin; height: 15vmin; }
+    #wx-temp { font-size: 13vmin; }
+    #wx-meta { margin-top: 1.6vmin; }
+    #wx-hours { margin-top: 2vmin; }
+
+    .bar { margin: 0.6vmin 0 0.4vmin; }
+    .spend { margin-top: 0; }
+  }
 </style>
 </head>
 <body>
-  <section id="header">
-    <div id="clock">--:--</div>
-    <div id="date"><span class="wd">&nbsp;</span><span class="md">&nbsp;</span></div>
-  </section>
-
-  <section id="weather"><h2 id="wx-title">Weather</h2><div id="wx"><div class="empty">Loading weather…</div></div></section>
+  <div id="col-a">
+    <section id="header">
+      <div id="clock">--:--</div>
+      <div id="date"><span class="wd">&nbsp;</span><span class="md">&nbsp;</span></div>
+    </section>
+    <section id="weather"><h2 id="wx-title">Weather</h2><div id="wx"><div class="empty">Loading weather…</div></div></section>
+  </div>
 
   <section id="quota"><h2>AI quota</h2><div id="quotas"><div class="empty">Loading quotas…</div></div></section>
 
@@ -102,7 +135,7 @@
   'use strict';
   var data = null, netError = null, lastOk = null, failStreak = 0;
   var prev = {};            // last rendered HTML per slot, to avoid needless e-ink repaints
-  var meta = { refresh_seconds: 120, flash_clear_minutes: 30, full_reload_hours: 6 };
+  var meta = { refresh_seconds: 120, flash_clear_minutes: 30, full_reload_hours: 6, orientation: null };
   var startedAt = Date.now();
 
   /* ---------- helpers ---------- */
@@ -185,9 +218,11 @@
       p.limits.forEach(function (l) {
         var pct = Math.max(0, Math.min(100, l.percent == null ? 0 : l.percent));
         var hot = (l.severity && l.severity !== 'normal') || pct >= 85;
-        out += '<div class="lim"><div class="row"><span>' + esc(l.label) + '</span><span class="pct' + (hot ? ' hot' : '') + '">' + round(l.percent) + '%</span></div>' +
+        var reset = esc(resetText(l.resets_at));
+        out += '<div class="lim"><div class="row"><span>' + esc(l.label) + '<small>' + reset + '</small></span>' +
+          '<span class="pct' + (hot ? ' hot' : '') + '">' + round(l.percent) + '%</span></div>' +
           '<div class="bar"><div class="fill' + (hot ? ' hot' : '') + '" style="width:' + pct + '%"></div></div>' +
-          '<div class="reset muted">' + esc(resetText(l.resets_at)) + '</div></div>';
+          '<div class="reset muted">' + reset + '</div></div>';
       });
       if (p.spend && p.spend.limit != null) {
         out += '<div class="spend muted">Extra usage ' + esc(p.spend.currency || '') + ' ' + p.spend.used.toFixed(2) + ' / ' + p.spend.limit.toFixed(2) + '</div>';
@@ -254,13 +289,18 @@
     renderFooter();
   }
 
+  /* The kiosk app rotates the screen to whatever config.json asks for (portrait, landscape, auto, ...). */
+  function applyOrientation() {
+    try { if (meta.orientation && window.Device && Device.setOrientation) Device.setOrientation(String(meta.orientation)); } catch (e) { /* plain browser */ }
+  }
+
   /* ---------- data ---------- */
   function load() {
     var ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
     var timer = ctrl && setTimeout(function () { ctrl.abort(); }, 25000);
     fetch('/api/data?t=' + Date.now(), { cache: 'no-store', signal: ctrl && ctrl.signal })
       .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
-      .then(function (j) { data = j; meta = j.meta || meta; netError = null; lastOk = new Date(); failStreak = 0; })
+      .then(function (j) { data = j; meta = j.meta || meta; netError = null; lastOk = new Date(); failStreak = 0; applyOrientation(); })
       .catch(function (e) { netError = e && e.message ? e.message : String(e); failStreak++; })
       .then(function () {
         if (timer) clearTimeout(timer);
@@ -301,6 +341,12 @@
     if (mins >= meta.full_reload_hours * 60) { location.reload(); return; }
     if (meta.flash_clear_minutes > 0 && Math.round(mins) % meta.flash_clear_minutes === 0) flashClear();
   }, 60000);
+  /* a rotation re-flows everything: wipe the panel once so the old layout leaves no ghost */
+  try {
+    var mq = window.matchMedia('(orientation: landscape)');
+    var onRotate = function () { setTimeout(flashClear, 300); };
+    if (mq.addEventListener) mq.addEventListener('change', onRotate); else mq.addListener(onRotate);
+  } catch (e) { /* ignore */ }
 })();
 </script>
 </body>

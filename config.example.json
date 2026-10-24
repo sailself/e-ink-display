@@ -10,6 +10,7 @@
     "timezone": "Europe/London"
   },
   "dashboard": {
+    "orientation": "portrait",
     "refresh_seconds": 120,
     "flash_clear_minutes": 30,
     "full_reload_hours": 6

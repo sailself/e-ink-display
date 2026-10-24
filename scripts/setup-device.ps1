@@ -41,6 +41,9 @@ if ($fresh) {
 }
 # Let the boot receiver start an activity from the background (Android 10+ restriction).
 & $adb shell appops set $pkg SYSTEM_ALERT_WINDOW allow
+# Boox ships with auto-rotate off and, unlike stock Android, ignores an app's sensor orientation request while
+# it is off. Needed for "orientation": "auto"; harmless otherwise (the app pins fixed orientations itself).
+& $adb shell settings put system accelerometer_rotation 1
 # Make http://localhost:$port on the device reach this PC over USB. The server re-issues this every 30 s too.
 & $adb reverse "tcp:$port" "tcp:$port"
 # Let adb also reach the device over Wi-Fi once the cable is out (cleared by a device reboot; re-run this then).

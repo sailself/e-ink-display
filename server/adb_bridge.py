@@ -39,6 +39,7 @@ def find_adb(cfg_path=""):
 class AdbBridge:
     def __init__(self, cfg, port):
         adb_cfg = cfg.get("adb") or {}
+        self.cfg = cfg
         self.port = port
         self.adb = find_adb(adb_cfg.get("path", ""))
         self.enabled = bool(adb_cfg.get("reverse", True)) and self.adb is not None
@@ -88,9 +89,11 @@ class AdbBridge:
             pass
 
     # -- maintenance tick ------------------------------------------------------------------------------------
-    def keepalive(self):
+    def keepalive(self, cfg=None):
         if not self.enabled:
             return
+        if cfg is not None:
+            self.cfg = cfg
         self.last_attempt = time.time()
         try:
             serial = self._pick_device()
@@ -121,6 +124,7 @@ class AdbBridge:
         self.last_app_check = time.time()
         pkg = self.package
         try:
+            self._ensure_auto_rotate()
             if f"package:{pkg}" in self._shell(f"pm list packages -d {pkg}").splitlines():
                 logging.warning("%s is frozen/disabled on the device; re-enabling and relaunching", pkg)
                 self._dev("shell", "pm", "enable", pkg)
@@ -139,6 +143,15 @@ class AdbBridge:
                 self.app_state = "running"
         except Exception as e:  # noqa: BLE001
             self.app_state = f"check failed: {e}"
+
+    def _ensure_auto_rotate(self):
+        """Boox ignores an app's sensor-orientation request unless Android's own auto-rotate is on."""
+        mode = ((self.cfg or {}).get("dashboard") or {}).get("orientation", "portrait")
+        if mode not in ("auto", "sensor", "sensor-portrait", "sensor-landscape"):
+            return
+        if self._shell("settings get system accelerometer_rotation") != "1":
+            self._dev("shell", "settings", "put", "system", "accelerometer_rotation", "1")
+            logging.info("enabled Android auto-rotate on the device (orientation=%s)", mode)
 
     def _launch(self):
         self._dev("shell", "am", "start", "-n", f"{self.package}/.MainActivity")

@@ -124,7 +124,7 @@ class Hub:
                     if s.due():
                         s.refresh(self.cfg)
                 if time.time() - last_adb >= 30:
-                    self.adb.keepalive()
+                    self.adb.keepalive(self.cfg)
                     last_adb = time.time()
             except Exception as e:  # noqa: BLE001
                 logging.error("maintain loop: %s", e)
@@ -138,6 +138,7 @@ class Hub:
                 "refresh_seconds": d.get("refresh_seconds", 120),
                 "flash_clear_minutes": d.get("flash_clear_minutes", 30),
                 "full_reload_hours": d.get("full_reload_hours", 6),
+                "orientation": d.get("orientation", "portrait"),
                 "timezone": self.cfg["location"]["timezone"],
                 "location": self.cfg["location"].get("name"),
                 "server_uptime_s": int(time.time() - self.started),

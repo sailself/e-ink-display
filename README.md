@@ -57,6 +57,18 @@ PC (Windows)                                USB / Wi-Fi                Boox Palm
   "calendar": { "ics_urls": [ { "name": "Work", "url": "https://calendar.google.com/calendar/ical/.../basic.ics" } ] }
   ```
 
+## Orientation
+
+`dashboard.orientation` in `config.json` drives the screen: `portrait`, `landscape`, `reverse-portrait`,
+`reverse-landscape` (USB port on the other side), `sensor-portrait`, `sensor-landscape`, or `auto` (follows
+the accelerometer, so the layout changes when you rotate the device). The page relays the value to the app
+after each poll, so a config edit takes effect within one refresh. Portrait is one column; landscape is three
+(clock + weather, quota, events). `auto` needs Android's own auto-rotate switch on (`settings put system
+accelerometer_rotation 1`): Boox ships with it off and ignores the app's sensor request while it is off.
+`setup-device.ps1` sets it, and the server re-asserts it over adb whenever the config says `auto`.
+One-off test without touching config:
+`adb shell am start -n dev.eink.dashboard/.MainActivity --es orientation landscape`.
+
 ## Day-to-day
 
 - Server runs as the per-user Scheduled Task `EinkDashboardServer` (starts at logon, restarts on failure).
